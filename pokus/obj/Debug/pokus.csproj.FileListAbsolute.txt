@@ -1,0 +1,13 @@
+C:\Users\Káťa\source\repos\pokus\pokus\bin\Debug\pokus.exe.config
+C:\Users\Káťa\source\repos\pokus\pokus\bin\Debug\pokus.exe
+C:\Users\Káťa\source\repos\pokus\pokus\bin\Debug\pokus.pdb
+C:\Users\Káťa\source\repos\pokus\pokus\bin\Debug\DynamicInterop.dll
+C:\Users\Káťa\source\repos\pokus\pokus\bin\Debug\RDotNet.dll
+C:\Users\Káťa\source\repos\pokus\pokus\bin\Debug\RDotNet.NativeLibrary.dll
+C:\Users\Káťa\source\repos\pokus\pokus\bin\Debug\DynamicInterop.xml
+C:\Users\Káťa\source\repos\pokus\pokus\bin\Debug\RDotNet.xml
+C:\Users\Káťa\source\repos\pokus\pokus\bin\Debug\RDotNet.NativeLibrary.xml
+C:\Users\Káťa\source\repos\pokus\pokus\obj\Debug\pokus.csproj.CoreCompileInputs.cache
+C:\Users\Káťa\source\repos\pokus\pokus\obj\Debug\pokus.exe
+C:\Users\Káťa\source\repos\pokus\pokus\obj\Debug\pokus.pdb
+C:\Users\Káťa\source\repos\pokus\pokus\obj\Debug\pokus.csprojResolveAssemblyReference.cache
