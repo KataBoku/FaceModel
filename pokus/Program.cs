@@ -114,7 +114,7 @@ namespace pokus
 
             });
         }
-        static List<double>[] loadFaces(string directoryPath)
+        static List<float>[] loadFaces(string directoryPath)
         {
             char[] DELIMITERS = { ' ', '\t' };
             const string VERTEX = "v";
@@ -123,7 +123,7 @@ namespace pokus
             var faceDictionarities = new DirectoryInfo(directoryPath).GetDirectories();
 
             //matrix of faces, vertexes of one face per one row
-            List<double>[] faceMatrix = new List<double>[faceDictionarities.Length];
+            List<float>[] faceMatrix = new List<float>[faceDictionarities.Length];
 
             //loads all face in face directory, 
             Parallel.For(0, faceDictionarities.Length, faceIndex =>
@@ -135,7 +135,7 @@ namespace pokus
                         var faceDictionary = faceDictionarities.ElementAt(faceIndex);
                         StreamReader faceReader = new StreamReader(Path.Combine(directoryPath, faceDictionary.ToString(), "remesh.obj"));
 
-                        faceMatrix[faceIndex] = new List<double>();
+                        faceMatrix[faceIndex] = new List<float>();
                         float x, y, z;
 
                         String line;
@@ -193,7 +193,7 @@ namespace pokus
             var faceDictionarities = new DirectoryInfo(directoryPath).GetDirectories();
 
             //matrix of faces, vertexes of one face per one row
-            List<double>[] faceMatrix = new List<double>[faceDictionarities.Length];
+            List<float>[] faceMatrix = new List<float>[faceDictionarities.Length];
 
             //loads all face in face directory, 
             Parallel.For(0, faceDictionarities.Length, faceIndex =>
@@ -205,7 +205,7 @@ namespace pokus
                         var faceDictionary = faceDictionarities.ElementAt(faceIndex);
                         StreamReader faceReader = new StreamReader(Path.Combine(directoryPath, faceDictionary.ToString(), "remesh.obj"));
 
-                        faceMatrix[faceIndex] = new List<double>();
+                        faceMatrix[faceIndex] = new List<float>();
                         float x, y, z;
 
                         String line;
@@ -247,7 +247,7 @@ namespace pokus
             });
 
             // return checkLoadData(faceMatrix);
-            List<double>[] checkedMatrix = checkLoadData(faceMatrix);
+            List<float>[] checkedMatrix = checkLoadData(faceMatrix);
             double[,] rResult = new double[checkedMatrix.Length, checkedMatrix[0].Count];
             if (checkedMatrix != null)
             {
@@ -269,7 +269,7 @@ namespace pokus
 
         }
 
-        private static List<double>[] checkLoadData(List<double>[] faceMatrix)
+        private static List<float>[] checkLoadData(List<float>[] faceMatrix)
         {
             if (faceMatrix == null || faceMatrix.Length == 0 || faceMatrix[0] == null || faceMatrix[0].Count == 0)
             {
@@ -365,10 +365,13 @@ namespace pokus
         {
             int matrixSize = faceMatrix.Length;
             double[,] XtimesX = new double[matrixSize, matrixSize];
+           // for (int rowIndex = 0; rowIndex < matrixSize; rowIndex++)
+
             Parallel.For(0, matrixSize, rowIndex =>
             {
                 List<float> face = faceMatrix[rowIndex];
 
+                //Parallel.For(0, matrixSize, colomnIndex =>
                 for (int colomnIndex = 0; colomnIndex < matrixSize; colomnIndex++)
                 {
                     for (int k = 0; k < face.Count; k++)
@@ -389,23 +392,18 @@ namespace pokus
         {
 
 
-            //Stopwatch stopwatch = Stopwatch.StartNew();
+            Stopwatch stopwatch = Stopwatch.StartNew();
 
-            //List<float>[] faceMatrix = loadFaces(directoryPath);
+            List<float>[] faceMatrix = loadFaces(directoryPath);
 
-            //writeAndResetStopwatch(stopwatch, "load");
-
-
-            //float[] columnSums = getColumnSums(faceMatrix);
-            //writeAndResetStopwatch(stopwatch, "sum");
-
-            //means0(faceMatrix, columnSums);
-            //writeAndResetStopwatch(stopwatch, "mean");
+            writeAndResetStopwatch(stopwatch, "load");
 
 
+            float[] columnSums = getColumnSums(faceMatrix);
+            writeAndResetStopwatch(stopwatch, "sum");
 
-
-
+            means0(faceMatrix, columnSums);
+            writeAndResetStopwatch(stopwatch, "mean");
 
             Console.ReadLine();
 
@@ -420,6 +418,7 @@ namespace pokus
         {
             REngine.SetEnvironmentVariables();
             REngine engine = REngine.GetInstance();
+            engine.Evaluate("options(max.print = 1)");
             // REngine requires explicit initialization.
             // You can set some parameters.
             engine.Initialize();
@@ -436,57 +435,61 @@ namespace pokus
         {
             REngine.SetEnvironmentVariables();
             REngine engine = REngine.GetInstance();
-            // REngine requires explicit initialization.
-            // You can set some parameters.
+            engine.Evaluate("options(max.print = 5)");
             engine.Initialize();
-            NumericMatrix group1 = engine.CreateNumericMatrix(square);
+
+             NumericMatrix group1 = engine.CreateNumericMatrix(square);
+
+            //---------------------------------------------------------------------
             //NumericMatrix group1 = engine.CreateNumericMatrix(new double[,] {
             //        { 0, 0, 0, 0, 1 },
             //        { 0, 0, 0, 1, 1 },
             //        { 0, 0, 1, 1, 1 },
             //        { 0, 0, 0, 1, 1 },
-            //        { 0, 0, 0, 0, 1 }
+            //        { 1, 0, 0, 0, 0}
             //});
+
+
+
             engine.SetSymbol("group1", group1);
-            GenericVector testResult = engine.Evaluate("eigen(group1)").AsList();
-            Console.WriteLine(testResult);
-            var hokus = testResult["values"].AsIntegerMatrix();
+          
+            GenericVector testResult = engine.Evaluate("(e<-eigen(group1))").AsList();
+
+
             var eigenValues = testResult["values"].AsNumeric().ToArray();
-            var vectorOfVectors = testResult["vectors"].AsNumeric();
+            var vectorOfVectors = testResult["vectors"].AsNumericMatrix().ToArray();
 
-            int indexNextEigenVector = 0;
+            //int indexNextEigenVector = 0;
 
-            // double[] eigenVectors 
-            //for (int i = 0; i < eigenVectors.Length; i++)
-            //{
-            //    if ()
-            //}
-            //Array.Sort(eigenValues, eigenVectors);
+
+
+            // Array.Sort(eigenValues,)
+
             //_allStatInfo.Sort(new Comparison<StatInfo>((x, y) => DateTime.Compare(x.date, y.date)));
 
-            double sum = eigenValues.Sum();
-            double[] kumulative = new double[eigenValues.Length];
-            //
-            bool firstOccurrence = false;
-            int thresholdIndex = -1;
-            double thresholdValue = 0.6;
-            for (int i = 0; i < eigenValues.Length; i++)
-            {
-                double normalize = eigenValues[i] / sum;
-                if (i == 0)
-                {
-                    kumulative[i] = normalize;
-                }
-                else
-                {
-                    kumulative[i] = normalize + kumulative[i - 1];
-                }
-                if (kumulative[i] >= thresholdValue && firstOccurrence == false)
-                {
-                    firstOccurrence = true;
-                    thresholdIndex = i;
-                }
-            }
+            //double sum = eigenValues.Sum();
+            //double[] kumulative = new double[eigenValues.Length];
+            ////
+            //bool firstOccurrence = false;
+            //int thresholdIndex = -1;
+            //double thresholdValue = 0.6;
+            //for (int i = 0; i < eigenValues.Length; i++)
+            //{
+            //    double normalize = eigenValues[i] / sum;
+            //    if (i == 0)
+            //    {
+            //        kumulative[i] = normalize;
+            //    }
+            //    else
+            //    {
+            //        kumulative[i] = normalize + kumulative[i - 1];
+            //    }
+            //    if (kumulative[i] >= thresholdValue && firstOccurrence == false)
+            //    {
+            //        firstOccurrence = true;
+            //        thresholdIndex = i;
+            //    }
+            //}
 
             // engine.Evaluate("plot(group2, type = 'l', col = 'red', lwd = 10,ylab='eigen values')");
 
@@ -494,16 +497,17 @@ namespace pokus
 
 
 
-            var normalizeEigenVaules = engine.CreateNumericVector(kumulative);
+            //var normalizeEigenVaules = engine.CreateNumericVector(kumulative);
 
 
-            engine.SetSymbol("v", normalizeEigenVaules);
+            //engine.SetSymbol("v", normalizeEigenVaules);
             // ylim = c(0, 1),type = 'b')
-            engine.Evaluate("plot(v, type = 'l', col = 'red', lwd = 10,ylab='eigen values',type = 'b')");
+            engine.Evaluate("eigenSum<-sum(e$values)");
+            //engine.Evaluate("cumsum(apply(as.matrix(e$values),1, function(x){(x-min(e$values))/(max(e$values)- min(e$values))}))");
+            engine.Evaluate("plot(cumsum(apply(as.matrix(e$values),2,function(x){x/eigenSum})), type = 'l', col = 'red', lwd = 10,ylab='eigen values')");
 
 
-            var hokz = testResult["values"].AsList().ToArray();
-            Console.WriteLine("P-value = {0}", hokus[1, 0]);
+          
 
             // return eigenValues;
         }
@@ -514,21 +518,47 @@ namespace pokus
         static void PCAR()
         {
             const string directoryPath = @"C:\Users\Káťa\Desktop\Diplomka\mesh\meshes";
+            Stopwatch stopwatch = Stopwatch.StartNew();
             var matrix = loadFacesR(directoryPath);
+            writeAndResetStopwatch(stopwatch, "load");
+     
+
             REngine.SetEnvironmentVariables();
             REngine engine = REngine.GetInstance();
-            NumericMatrix group1 = engine.CreateNumericMatrix(matrix);
+            engine.Evaluate("options(max.print = 1)");
 
+            //var matrix = new double[,]  {{1,2,3,4},
+            //    {0,2,2,-2},
+            //   {3,4,5,6},
+            //  {0,0,0,0}};
+
+            NumericMatrix group1 = engine.CreateNumericMatrix(matrix);
+            writeAndResetStopwatch(stopwatch, "save data");
             engine.SetSymbol("group1", group1);
-            GenericVector testResult = engine.Evaluate("pr.out=prcomp(group1, scale=TRUE)").AsList();
-            var eigenVec = testResult["x"].AsNumericMatrix();
-            engine.Evaluate("pr.out$sdev");
-            engine.Evaluate("pr.var = pr.out$sdev ^ 2");
-            engine.Evaluate("pr.var");
-            engine.Evaluate("pve = pr.var / sum(pr.var)");
-            engine.Evaluate("pve");
-            engine.Evaluate("plot(cumsum(pve), xlab='Principal Component', ylab='Cumulative Proportion of Variance Explained', ylim=c(0,1),type='b')");
-            saveVector(eigenVec);
+
+            //---------------------------------porovnani nasobeni
+            //engine.Evaluate("group1");
+            //engine.Evaluate("group2 <- t(group1)");
+            //writeAndResetStopwatch(stopwatch, "data");
+            //engine.Evaluate("group3 <- group1 %*% group2");
+            //writeAndResetStopwatch(stopwatch, "just Multiply");
+
+           
+            GenericVector testResult = engine.Evaluate("pr.out=prcomp(group1,scale=TRUE)").AsList();
+            //writeAndResetStopwatch(stopwatch, "all PCA");
+
+            //var eigenVec = testResult["x"].AsNumericMatrix();
+            //engine.Evaluate("pr.out$sdev");
+            //engine.Evaluate("pr.var = pr.out$sdev ^ 2");
+            //engine.Evaluate("pr.var");
+            //engine.Evaluate("pve = pr.var / sum(pr.var)");
+            //engine.Evaluate("pve");
+            //engine.Evaluate("plot(cumsum(pve), xlab='Principal Component', ylab='Cumulative Proportion of Variance Explained', ylim=c(0,1),type='b')");
+            writeAndResetStopwatch(stopwatch, "oddelovatc");
+             var test= engine.Evaluate("pr.out=prcomp(group1,center=TRUE,scale=FALSE)").AsList();
+            
+          //  engine.Evaluate("plot(cumsum(prr.var ), xlab='Principal Compo;nent', ylab='Cumulative Proportion of Variance Explained', ylim=c(0,1),type='b')");
+          //  saveVector(eigenVec);
 
             // var eigenVec = testResult["pr.out&x"].AsNumericMatrix();
 
@@ -540,67 +570,43 @@ namespace pokus
         static void PCA()
         {
             const string directoryPath = @"C:\Users\Káťa\Desktop\Diplomka\mesh\meshes";
-            var matrix = loadFacesR(directoryPath);
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            var dataMatrix = loadFaces(directoryPath);
+            writeAndResetStopwatch(stopwatch, "load");
+
+            if (dataMatrix == null)
+            { return; }
+
+            var columnSum =  getColumnSums(dataMatrix);
+            writeAndResetStopwatch(stopwatch, "sum");
+
+            means0(dataMatrix, columnSum);
+            writeAndResetStopwatch(stopwatch, "mean");
+
+            var multiplySmallMatrix = smallSquereMatrix(dataMatrix);
+            writeAndResetStopwatch(stopwatch, "multiply");
+
+            runR(multiplySmallMatrix);
+            writeAndResetStopwatch(stopwatch, "eigen...");
+
+            runR(multiplySmallMatrix);
+            writeAndResetStopwatch(stopwatch, "real eigenVector");
+
+            runR(multiplySmallMatrix);
+            writeAndResetStopwatch(stopwatch, "loads ");
+
+
+
+
         }
 
         static void Main(string[] args)
         {
-            const string directoryPath = @"C:\Users\Káťa\Desktop\Diplomka\mesh\meshes";
-            var matrix = loadFacesR(directoryPath);
-            REngine.SetEnvironmentVariables();
-            REngine engine = REngine.GetInstance();
-            NumericMatrix group1 = engine.CreateNumericMatrix(matrix);
-
-            //List<float>[] faceMatrix = new List<float>[] { };
-            //double[,] squere = new double[,] { { 13,  -4,    2 },
-            //  {-4 ,  11  , -2},  {2 ,  -2  ,  8 } };
-            //runR(squere);
-            //int[] i = new int[] {};
-            // pokus();
+            //runR(null);
+            //PCAR();
+            PCA();
 
 
-            // var matrix = getDataMatrix(directoryPath);
-
-            // runR();
-
-
-            //REngine.SetEnvironmentVariables();
-            //REngine engine = REngine.GetInstance();
-            //// REngine requires explicit initialization.
-            //// You can set some parameters.
-            //engine.Initialize();
-            //NumericMatrix group1 = engine.CreateNumericMatrix(new double[,] {
-            //        { 0, 0, 0, 0, 1 },
-            //        { 0, 0, 0, 1, 1 },
-            //        { 0, 0, 1, 1, 1 },
-            //        { 0, 0, 0, 1, 1 },
-            //        { 0, 0, 0, 0, 1 }
-            //});
-            //engine.SetSymbol("group1", group1);
-            //GenericVector testResult = engine.Evaluate("eigen(group1)").AsList();
-            //Console.WriteLine("P-value = {0}", group1);
-
-
-
-
-            // //.NET Framework array to R vector.
-            //NumericVector group1 = engine.CreateNumericVector(new double[] { 30.02, 29.99, 30.11, 29.97, 30.01, 29.99 });
-            //engine.SetSymbol("group1", group1);
-            //// Direct parsing from R script.
-            //NumericVector group2 = engine.Evaluate("group2 <- c(29.89, 29.93, 29.72, 29.98, 30.02, 29.98)").AsNumeric();
-
-
-            //// Test difference of mean and get the P-value.
-            //GenericVector testResult = engine.Evaluate("t.test(group1, group2)").AsList();
-            //double p = testResult["p.value"].AsNumeric().First();
-
-            //Console.WriteLine("Group1: [{0}]", string.Join(", ", group1));
-            //Console.WriteLine("Group2: [{0}]", string.Join(", ", group2));
-            //Console.WriteLine("P-value = {0:0.000}", p);
-
-            //you should always dispose of the REngine properly.
-            // After disposing of the engine, you cannot reinitialize nor reuse it
-            // engine.Dispose();
             Console.ReadLine();
 
 
