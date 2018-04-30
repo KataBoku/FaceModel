@@ -431,7 +431,7 @@ namespace pokus
             engine.Evaluate("dev.off()");
             engine.Dispose();
         }
-        static void runR(double[,] square)
+        static void runR(double[,] square, List<float>[] faceMatrix)
         {
             REngine.SetEnvironmentVariables();
             REngine engine = REngine.GetInstance();
@@ -504,13 +504,50 @@ namespace pokus
             // ylim = c(0, 1),type = 'b')
             engine.Evaluate("eigenSum<-sum(e$values)");
             //engine.Evaluate("cumsum(apply(as.matrix(e$values),1, function(x){(x-min(e$values))/(max(e$values)- min(e$values))}))");
+
+            //zaporne hodnoty?????????
+            engine.Evaluate("sink('C:/Users/Káťa/Documents/eigenValues.txt')");
+      
+            var cumulativeSum = engine.Evaluate("cumulativeSum <-cumsum(apply(as.matrix(e$values),2,function(x){x/eigenSum})");
+            engine.Evaluate("sink()");
             engine.Evaluate("plot(cumsum(apply(as.matrix(e$values),2,function(x){x/eigenSum})), type = 'l', col = 'red', lwd = 10,ylab='eigen values')");
 
+            int threshold = 1;
+            int numberOfData = vectorOfVectors.GetLength(0);
+            int faceDataLength = faceMatrix[0].Count();
+            //each in row
+            double[,] pcaVectors = new double[vectorOfVectors.GetLength(0), faceDataLength];
+            Parallel.For(0, vectorOfVectors.GetLength(1), columnIndex =>
+            {
+                for (int k = 0; k < faceDataLength; k++)
 
-          
+                {
+                    for (int rowIndex = 0; rowIndex < vectorOfVectors.GetLength(0); rowIndex++)
+                    {
+                        pcaVectors[columnIndex, k] += vectorOfVectors[rowIndex, columnIndex] * faceMatrix[rowIndex][k];
+                    }
 
-            // return eigenValues;
-        }
+                }
+            });
+
+            double[,] values =  new double[ numberOfData, numberOfData];
+
+            //X*pcaVectors
+            Parallel.For(0, numberOfData, i =>
+            {
+                for (int j = 0; i < numberOfData; i++)
+                {
+                    for (int k = 0; k < faceDataLength; k++)
+                    {
+                        values[i, j] += faceMatrix[i][k] * pcaVectors[k, j];
+                    }
+                }
+
+            });
+
+
+                // return eigenValues;
+            }
 
         /// <summary>
         /// Run PCA in R engine
@@ -525,7 +562,7 @@ namespace pokus
 
             REngine.SetEnvironmentVariables();
             REngine engine = REngine.GetInstance();
-            engine.Evaluate("options(max.print = 1)");
+           // engine.Evaluate("options(max.print = 1)");
 
             //var matrix = new double[,]  {{1,2,3,4},
             //    {0,2,2,-2},
@@ -543,24 +580,41 @@ namespace pokus
             //engine.Evaluate("group3 <- group1 %*% group2");
             //writeAndResetStopwatch(stopwatch, "just Multiply");
 
-           
-            GenericVector testResult = engine.Evaluate("pr.out=prcomp(group1,scale=TRUE)").AsList();
+
+            //GenericVector testResult = engine.Evaluate("pr.out=prcomp(group1,scale=TRUE)").AsList();
+            //
+
+
+
             //writeAndResetStopwatch(stopwatch, "all PCA");
 
+            var test = engine.Evaluate("pr.out=prcomp(group1,center=TRUE,scale=FALSE)").AsList();
             //var eigenVec = testResult["x"].AsNumericMatrix();
-            //engine.Evaluate("pr.out$sdev");
-            //engine.Evaluate("pr.var = pr.out$sdev ^ 2");
-            //engine.Evaluate("pr.var");
-            //engine.Evaluate("pve = pr.var / sum(pr.var)");
-            //engine.Evaluate("pve");
-            //engine.Evaluate("plot(cumsum(pve), xlab='Principal Component', ylab='Cumulative Proportion of Variance Explained', ylim=c(0,1),type='b')");
-            writeAndResetStopwatch(stopwatch, "oddelovatc");
-             var test= engine.Evaluate("pr.out=prcomp(group1,center=TRUE,scale=FALSE)").AsList();
-            
-          //  engine.Evaluate("plot(cumsum(prr.var ), xlab='Principal Compo;nent', ylab='Cumulative Proportion of Variance Explained', ylim=c(0,1),type='b')");
-          //  saveVector(eigenVec);
+            engine.Evaluate("pr.out$sdev");
+            engine.Evaluate("pr.var = pr.out$sdev ^ 2");
+            engine.Evaluate("pr.var");
+            engine.Evaluate("pve = pr.var / sum(pr.var)");
+            engine.Evaluate("pve");
+            engine.Evaluate("plot(cumsum(pve), xlab='Principal Component', ylab='Cumulative Proportion of Variance Explained', ylim=c(0,1),type='b')");
+            // writeAndResetStopwatch(stopwatch, "oddelovatc");
+
+       
+
+            engine.Evaluate("sink('C:/Users/Káťa/Documents/pcaVectors.txt')");
+            engine.Evaluate("pr.out$rotation");
+            engine.Evaluate("sink()");
+            engine.Evaluate("sink('C:/Users/Káťa/Documents/pcaValues.txt')");
+            engine.Evaluate("cumsum(pve)");
+            engine.Evaluate("sink()");
+
+            //  engine.Evaluate("plot(cumsum(prr.var ), xlab='Principal Compo;nent', ylab='Cumulative Proportion of Variance Explained', ylim=c(0,1),type='b')");
+            //  saveVector(eigenVec);
 
             // var eigenVec = testResult["pr.out&x"].AsNumericMatrix();
+
+
+
+
 
             Console.ReadLine();
         }
@@ -586,25 +640,18 @@ namespace pokus
             var multiplySmallMatrix = smallSquereMatrix(dataMatrix);
             writeAndResetStopwatch(stopwatch, "multiply");
 
-            runR(multiplySmallMatrix);
+            runR(multiplySmallMatrix,dataMatrix);
             writeAndResetStopwatch(stopwatch, "eigen...");
 
-            runR(multiplySmallMatrix);
-            writeAndResetStopwatch(stopwatch, "real eigenVector");
-
-            runR(multiplySmallMatrix);
-            writeAndResetStopwatch(stopwatch, "loads ");
-
-
-
+        
 
         }
 
         static void Main(string[] args)
         {
             //runR(null);
-            //PCAR();
-            PCA();
+            PCAR();
+            //PCA();
 
 
             Console.ReadLine();
