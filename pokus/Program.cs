@@ -14,7 +14,7 @@ namespace pokus
     class Program
 
     {
-        static void saveVector(NumericMatrix eigenVectors)
+        static void saveVector(double[,] aproxiamation, string name)
         {
             char[] DELIMITERS = { ' ', '\t' };
             const string VERTEX = "v";
@@ -23,7 +23,7 @@ namespace pokus
             {
 
                 StreamReader faceReader = new StreamReader(Path.Combine(@"C:\Users\Káťa\Desktop\Diplomka\mesh\meshes", "0", "remesh.obj"));
-                StreamWriter faceWriter = new StreamWriter(Path.Combine(@"C:\Users\Káťa\Desktop\Diplomka\mesh\meshes", "0", "newRemesh.obj"));
+                StreamWriter faceWriter = new StreamWriter(Path.Combine(@"C:\Users\Káťa\Desktop\Diplomka\mesh\meshes", "0", name));
 
                 int i = 0;
                 String line;
@@ -37,14 +37,18 @@ namespace pokus
                     if (tokens[0] == VERTEX)
                     {
                         //TODO aktualni data
-                        faceWriter.WriteLine(VERTEX + "\t" + string.Join("\t", new float[] { (float)eigenVectors[1, i++], (float)eigenVectors[1, i++], (float)eigenVectors[1, i++] }));
+                        faceWriter.WriteLine(VERTEX + " " + string.Join(" ", new float[] { (float)aproxiamation[0, i++], (float)aproxiamation[0, i++], (float)aproxiamation[0, i++] }));
 
 
                     }
+                    else
+
+                    { faceWriter.WriteLine(line); }
+
 
                     ///TODO muze byt jine poradi????, takhle je to rychlejsi o 2 sekundy
-                    if (tokens[0] == FACE)
-                        faceWriter.WriteLine(line);
+                    //if (tokens[0] == FACE)
+                    //    faceWriter.WriteLine(line);
 
                 }
 
@@ -365,7 +369,7 @@ namespace pokus
         {
             int matrixSize = faceMatrix.Length;
             double[,] XtimesX = new double[matrixSize, matrixSize];
-           // for (int rowIndex = 0; rowIndex < matrixSize; rowIndex++)
+            // for (int rowIndex = 0; rowIndex < matrixSize; rowIndex++)
 
             Parallel.For(0, matrixSize, rowIndex =>
             {
@@ -431,14 +435,36 @@ namespace pokus
             engine.Evaluate("dev.off()");
             engine.Dispose();
         }
-        static void runR(double[,] square, List<float>[] faceMatrix)
+        static void runR(double[,] square, List<float>[] faceMatrix, List<float>[] origin)
         {
             REngine.SetEnvironmentVariables();
             REngine engine = REngine.GetInstance();
-            engine.Evaluate("options(max.print = 5)");
+            engine.Evaluate("options(max.print = 10000)");
             engine.Initialize();
 
-             NumericMatrix group1 = engine.CreateNumericMatrix(square);
+
+            //int matrixSize = faceMatrix[0].Count;
+            //double[,] XtimesX = new double[matrixSize, matrixSize];
+            //Parallel.For(0, matrixSize, rowIndex =>
+            //{
+            //    //List<float> face = faceMatrix[rowIndex];
+
+            //    //Parallel.For(0, matrixSize, colomnIndex =>
+            //    for (int colomnIndex = 0; colomnIndex < matrixSize; colomnIndex++)
+            //    {
+            //        for (int k = 0; k < faceMatrix.Length; k++)
+            //        {
+
+            //            XtimesX[rowIndex, colomnIndex] += faceMatrix[k][rowIndex] * faceMatrix[k][colomnIndex];
+            //        }
+            //    }
+
+            //});
+
+            NumericMatrix group1 = engine.CreateNumericMatrix(square);
+
+
+
 
             //---------------------------------------------------------------------
             //NumericMatrix group1 = engine.CreateNumericMatrix(new double[,] {
@@ -452,7 +478,7 @@ namespace pokus
 
 
             engine.SetSymbol("group1", group1);
-          
+
             GenericVector testResult = engine.Evaluate("(e<-eigen(group1))").AsList();
 
 
@@ -506,48 +532,147 @@ namespace pokus
             //engine.Evaluate("cumsum(apply(as.matrix(e$values),1, function(x){(x-min(e$values))/(max(e$values)- min(e$values))}))");
 
             //zaporne hodnoty?????????
-            engine.Evaluate("sink('C:/Users/Káťa/Documents/eigenValues.txt')");
-      
-            var cumulativeSum = engine.Evaluate("cumulativeSum <-cumsum(apply(as.matrix(e$values),2,function(x){x/eigenSum})");
-            engine.Evaluate("sink()");
+            //engine.Evaluate("sink('C:/Users/Káťa/Documents/eigenValues.txt')");
+
+            engine.Evaluate("cumulativeSum <-cumsum(apply(as.matrix(e$values),2,function(x){x/eigenSum}))");
+            var list = engine.Evaluate("(apply(as.matrix(e$values),2,function(x){x/eigenSum}))").AsVector();
+            for (int i = 0; i < list.Length; i++)
+
+            {
+                Console.Write(list[i] + ", ");
+            }
+
+
+            // engine.Evaluate("sink()");
             engine.Evaluate("plot(cumsum(apply(as.matrix(e$values),2,function(x){x/eigenSum})), type = 'l', col = 'red', lwd = 10,ylab='eigen values')");
 
             int threshold = 1;
-            int numberOfData = vectorOfVectors.GetLength(0);
-            int faceDataLength = faceMatrix[0].Count();
+            int faceNumber = vectorOfVectors.GetLength(0);
+            int vertexNumber = faceMatrix[0].Count();
+            // double min = double.MinValue;
+            // double max = double.MaxValue;
+            double[] min = new double[faceNumber];
+            double[] max = new double[faceNumber];
+            double[] sum = new double[faceNumber];
             //each in row
-            double[,] pcaVectors = new double[vectorOfVectors.GetLength(0), faceDataLength];
+            double[,] pcaVectors = new double[vectorOfVectors.GetLength(0), vertexNumber];
             Parallel.For(0, vectorOfVectors.GetLength(1), columnIndex =>
-            {
-                for (int k = 0; k < faceDataLength; k++)
+            //for (int columnIndex = 0; columnIndex < faceNumber; columnIndex++)
+            
+           {
+                for (int k = 0; k < vertexNumber; k++)
 
                 {
                     for (int rowIndex = 0; rowIndex < vectorOfVectors.GetLength(0); rowIndex++)
                     {
+
+                        //Vector in row +=vector in column * vector in row
                         pcaVectors[columnIndex, k] += vectorOfVectors[rowIndex, columnIndex] * faceMatrix[rowIndex][k];
                     }
+                    sum[columnIndex] += pcaVectors[columnIndex, k]* pcaVectors[columnIndex, k];
+                    //if (k == 0)
+                    //{
+                    //    min[columnIndex] = pcaVectors[columnIndex, k];
+                    //    max[columnIndex] = pcaVectors[columnIndex, k];
+                    //}
+
+
+                    //if (pcaVectors[columnIndex, k] < min[columnIndex])
+                    //{ min[columnIndex] = pcaVectors[columnIndex, k]; }
+                    //if (pcaVectors[columnIndex, k] > max[columnIndex])
+                    //{ max[columnIndex] = pcaVectors[columnIndex, k]; }
 
                 }
+                sum[columnIndex] = Math.Sqrt(sum[columnIndex]);
             });
 
-            double[,] values =  new double[ numberOfData, numberOfData];
+          
+
+            Parallel.For(0, vectorOfVectors.GetLength(1), columnIndex =>
+                {
+                    double interval = max[columnIndex] - min[columnIndex];
+
+                    for (int k = 0; k < vertexNumber; k++)
+                    {
+
+                        //if (interval == 0)
+                        //{
+                        //    // pcaVectors[columnIndex, k] = (pcaVectors[columnIndex, k] - min[columnIndex]);
+                        //}
+                        //else
+                        //{
+                        //    pcaVectors[columnIndex, k] = pcaVectors[columnIndex, k] - min[columnIndex]) ;
+                        //}
+
+                      pcaVectors[columnIndex, k] = pcaVectors[columnIndex, k] /sum[columnIndex];
+                    }
+                });
+
+            double[,] values = new double[faceNumber, faceNumber];
 
             //X*pcaVectors
-            Parallel.For(0, numberOfData, i =>
-            {
-                for (int j = 0; i < numberOfData; i++)
-                {
-                    for (int k = 0; k < faceDataLength; k++)
-                    {
-                        values[i, j] += faceMatrix[i][k] * pcaVectors[k, j];
-                    }
-                }
+            Parallel.For(0, faceNumber, i =>
+                        {
+                            for (int j = 0; j < faceNumber; j++)
+                            {
+                                for (int k = 0; k < vertexNumber; k++)
+                                {
+                                    values[i, j] += faceMatrix[i][k] * pcaVectors[j, k];
+                                }
+                            }
 
+                        });
+
+            double[,] aproxiamation = new double[vectorOfVectors.GetLength(0), vertexNumber];
+            Parallel.For(0, faceNumber, i =>
+                        {
+                            for (int j = 0; j < vertexNumber; j++)
+                            {
+                                for (int k = 0; k < 10; k++)
+                                {
+                                    aproxiamation[i, j] += values[i, k] * pcaVectors[k, j];
+                                }
+                            }
+
+                        });
+
+            int numberOfVertexies = origin[0].Count;
+            float[] columnMeans = new float[numberOfVertexies];
+
+            //gets sum of in each face
+            Parallel.For(0, origin.Length, faceIndex =>
+                        {
+                            List<float> face = origin[faceIndex];
+
+
+                            for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
+                            {
+                                columnMeans[vertexIndex] += face[vertexIndex];
+                            }
+                        });
+            
+
+
+            Parallel.For(0, faceNumber, faceIndex =>
+            {
+                for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
+                {
+                    aproxiamation[faceIndex, vertexIndex] += columnMeans[vertexIndex] / faceNumber;
+                }
             });
 
+            Parallel.For(0, faceNumber, faceIndex =>
+            {
+              
 
-                // return eigenValues;
-            }
+                for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
+                {
+                    aproxiamation[faceIndex, vertexIndex] = (float)aproxiamation[faceIndex, vertexIndex];
+                }
+            });
+            saveVector(aproxiamation, "new10.obj");
+            // return eigenValues;
+        }
 
         /// <summary>
         /// Run PCA in R engine
@@ -556,18 +681,18 @@ namespace pokus
         {
             const string directoryPath = @"C:\Users\Káťa\Desktop\Diplomka\mesh\meshes";
             Stopwatch stopwatch = Stopwatch.StartNew();
-            var matrix = loadFacesR(directoryPath);
+            //var matrix = loadFacesR(directoryPath);
             writeAndResetStopwatch(stopwatch, "load");
-     
+
 
             REngine.SetEnvironmentVariables();
             REngine engine = REngine.GetInstance();
-           // engine.Evaluate("options(max.print = 1)");
+            // engine.Evaluate("options(max.print = 1)");
 
-            //var matrix = new double[,]  {{1,2,3,4},
-            //    {0,2,2,-2},
-            //   {3,4,5,6},
-            //  {0,0,0,0}};
+            var matrix = new double[,]  { { 1, 2, 9,5 },
+              { 3,1,5,6},
+      
+             };
 
             NumericMatrix group1 = engine.CreateNumericMatrix(matrix);
             writeAndResetStopwatch(stopwatch, "save data");
@@ -588,35 +713,132 @@ namespace pokus
 
             //writeAndResetStopwatch(stopwatch, "all PCA");
 
+            engine.Evaluate("options(max.print=10000)");
+             //engine.Evaluate("sink('C:/Users/Káťa/Documents/pcaVectors.txt')");
             var test = engine.Evaluate("pr.out=prcomp(group1,center=TRUE,scale=FALSE)").AsList();
+            //engine.Evaluate("sink('C:/Users/Káťa/Documents/pcaVectors.txt')");
+            //engine.Evaluate("sink('C:/Users/Káťa/Documents/pcaValues.txt')");
+            // engine.Evaluate("group1");
+            //engine.Evaluate("sink()");
             //var eigenVec = testResult["x"].AsNumericMatrix();
+
+            engine.Evaluate("pr.out$x");
             engine.Evaluate("pr.out$sdev");
             engine.Evaluate("pr.var = pr.out$sdev ^ 2");
             engine.Evaluate("pr.var");
             engine.Evaluate("pve = pr.var / sum(pr.var)");
             engine.Evaluate("pve");
             engine.Evaluate("plot(cumsum(pve), xlab='Principal Component', ylab='Cumulative Proportion of Variance Explained', ylim=c(0,1),type='b')");
+
+            Console.WriteLine("vlastni cisla asi :");
+            var list = engine.Evaluate("pve ").AsVector();
+            for (int i = 0; i < list.Length; i++)
+
+            {
+                Console.Write(list[i] + ", ");
+            }
+
+
             // writeAndResetStopwatch(stopwatch, "oddelovatc");
 
-       
 
-            engine.Evaluate("sink('C:/Users/Káťa/Documents/pcaVectors.txt')");
-            engine.Evaluate("pr.out$rotation");
-            engine.Evaluate("sink()");
-            engine.Evaluate("sink('C:/Users/Káťa/Documents/pcaValues.txt')");
-            engine.Evaluate("cumsum(pve)");
-            engine.Evaluate("sink()");
+
+
+            //engine.Evaluate("sink('C:/Users/Káťa/Documents/pcaVectors.txt')");
+            //engine.Evaluate("group1");
+            //engine.Evaluate("sink()");
+            //engine.Evaluate("sink('C:/Users/Káťa/Documents/pcaValues.txt')");
+            //engine.Evaluate("cumsum(pve)");
+            //engine.Evaluate("sink()");
 
             //  engine.Evaluate("plot(cumsum(prr.var ), xlab='Principal Compo;nent', ylab='Cumulative Proportion of Variance Explained', ylim=c(0,1),type='b')");
             //  saveVector(eigenVec);
 
-            // var eigenVec = testResult["pr.out&x"].AsNumericMatrix();
+            var scoreVectors = test["x"].AsNumericMatrix();
+            var loadingVectors = test["rotation"].AsNumericMatrix();
+
+            Console.WriteLine("vlastni cisla asi :");
+     
+            for (int i = 0; i < scoreVectors.RowCount; i++)
+
+            {
+                for (int j = 0; j < scoreVectors.ColumnCount; j++)
+                {
+                    Console.Write(scoreVectors[i,j] + ", ");
+                }
+                Console.WriteLine();
+            }
+
+
+            int faceNumber = matrix.GetLength(0);
+            int vertexNumber = matrix.GetLength(1);
 
 
 
+            double[,] aproxiamation = new double[faceNumber, vertexNumber];
+
+            //each face
+            //Parallel.For(0, 1/*faceNumber*/, i =>
+
+            for (int i = 0; i < faceNumber ; i++)
+
+            {
+        //eache vertex of face
+        for (int j = 0; j < vertexNumber; j++)
+                {
+            //linear combination with score and load vectors
+            for (int k = 0; k < loadingVectors.ColumnCount; k++)
+                    {
+                        double a = loadingVectors[j, k];
+                        double b = scoreVectors[i, k];
+                        double s = scoreVectors[i, k] * loadingVectors[j, k];
+                        aproxiamation[i, j] += scoreVectors[i, k] * loadingVectors[j, k];
+                    }
+                }
+
+            }//);
 
 
-            Console.ReadLine();
+            int numberOfVertexies = vertexNumber;
+            double[] columnMeans = new double[numberOfVertexies];
+
+            //gets sum of in each face
+            Parallel.For(0, faceNumber, faceIndex =>
+            {
+
+
+
+                for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
+                {
+                    columnMeans[vertexIndex] += matrix[faceIndex, vertexIndex];
+                }
+            });
+
+            Parallel.For(0, faceNumber, faceIndex =>
+            {
+        // List<float> face = faceMatrix[faceIndex];
+
+           for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
+                {
+                    aproxiamation[faceIndex, vertexIndex] += columnMeans[vertexIndex] / faceNumber;
+                }
+            });
+
+            // -------------------p5i yaokrouhlen9 na floaty nejlepsi vysledkz
+            //Parallel.For(0, faceNumber, faceIndex =>
+            //{
+            //    // List<float> face = faceMatrix[faceIndex];
+
+            //    for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
+            //    {
+            //        aproxiamation[faceIndex, vertexIndex]  =  (float)aproxiamation[faceIndex, vertexIndex];
+            //    }
+            //});
+
+            saveVector(aproxiamation, "new289.obj");
+            engine.Dispose();
+
+
         }
         /// <summary>
         /// Run multithread PCA
@@ -628,10 +850,29 @@ namespace pokus
             var dataMatrix = loadFaces(directoryPath);
             writeAndResetStopwatch(stopwatch, "load");
 
+            //var dataMatrix = new List<float>[] { new List<float>() { 1, 2, 9,5 },
+            //   new List<float>() { 3,1,5,6},
+            //   new List<float>() { 8,5,5,3},
+            // };
+
+            List<float>[] copy = new List<float>[dataMatrix.Length];
+            for (int i = 0; i < dataMatrix.Length; i++)
+            {
+                copy[i] = new List<float>();        
+                for (int j = 0; j < dataMatrix[0].Count; j++)
+                {
+                    copy[i].Add(dataMatrix[i][j]);
+                }
+            }
+
             if (dataMatrix == null)
             { return; }
 
-            var columnSum =  getColumnSums(dataMatrix);
+           
+
+           
+
+            var columnSum = getColumnSums(dataMatrix);
             writeAndResetStopwatch(stopwatch, "sum");
 
             means0(dataMatrix, columnSum);
@@ -640,21 +881,21 @@ namespace pokus
             var multiplySmallMatrix = smallSquereMatrix(dataMatrix);
             writeAndResetStopwatch(stopwatch, "multiply");
 
-            runR(multiplySmallMatrix,dataMatrix);
+            runR(multiplySmallMatrix, dataMatrix,copy);
             writeAndResetStopwatch(stopwatch, "eigen...");
 
-        
+
 
         }
 
         static void Main(string[] args)
         {
-            //runR(null);
-            PCAR();
-            //PCA();
+           //runR(null);
+           // PCAR();
+            PCA();
 
 
-            Console.ReadLine();
+            // Console.ReadLine();
 
 
         }
