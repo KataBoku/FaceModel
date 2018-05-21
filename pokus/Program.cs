@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
 
@@ -14,8 +15,92 @@ namespace pokus
     class Program
 
     {
+
+        static void differences(string dictionaryPath, string faceNumber, string originName, string newName)
+        {
+
+            char[] DELIMITERS = { ' ', '\t' };
+            const string VERTEX = "v";
+            const string FACE = "f";
+
+
+            try
+            {
+                //var faceDictionary = faceDictionarities.ElementAt(faceIndex);
+                StreamReader originFaceReader = new StreamReader(Path.Combine(dictionaryPath, faceNumber, originName));
+                StreamReader newFaceReader = new StreamReader(Path.Combine(dictionaryPath, faceNumber, newName));
+
+
+                // faceMatrix[faceIndex] = new List<float>();
+                float ox, oy, oz, nx, ny, nz;
+                int vertexIndexOfDifference = 0;
+                Dictionary<int, float[]> difference = new Dictionary<int, float[]>();
+
+                String originLine;
+                String newLine;
+                //gets only vertex data from the face file
+                while ((originLine = originFaceReader.ReadLine()) != null)
+                {
+
+                    string[] originTokens = originLine.Split(DELIMITERS, StringSplitOptions.RemoveEmptyEntries);
+                    if (originTokens.Length == 0)
+                        continue;
+
+                    newLine = newFaceReader.ReadLine();
+                    string[] newTokens = newLine.Split(DELIMITERS, StringSplitOptions.RemoveEmptyEntries);
+
+                    if (originTokens[0] == VERTEX)
+                    {
+
+                        if (!float.TryParse(originTokens[1], NumberStyles.Float, CultureInfo.InvariantCulture, out ox) ||
+                            !float.TryParse(originTokens[2], NumberStyles.Float, CultureInfo.InvariantCulture, out oy) ||
+                            !float.TryParse(originTokens[3], NumberStyles.Float, CultureInfo.InvariantCulture, out oz) ||
+                            !float.TryParse(newTokens[1], NumberStyles.Float, CultureInfo.InvariantCulture, out nx) ||
+                            !float.TryParse(newTokens[2], NumberStyles.Float, CultureInfo.InvariantCulture, out ny) ||
+                            !float.TryParse(newTokens[3], NumberStyles.Float, CultureInfo.InvariantCulture, out nz)
+                            )
+                            continue;
+
+                        if (ox != nx || oy != ny || oz != nz)
+                        {
+                            difference.Add(vertexIndexOfDifference, new float[] { ox - nx, oy - ny, oz - nz });
+                        }
+                        vertexIndexOfDifference++;
+                    }
+
+                    ///TODO muze byt jine poradi????, takhle je to rychlejsi o 2 sekundy
+                    if (originTokens[0] == FACE)
+                        break;
+
+                }
+
+                originFaceReader.Close();
+                newFaceReader.Close();
+                Console.WriteLine(difference.Count);
+                Console.WriteLine("vypsat rozdily? a/n");
+                string choose = Console.ReadLine();
+                if (choose == "a")
+                {
+                    foreach (var diff in difference)
+                    {
+                        Console.WriteLine("{0,10}{1,2}{2,20}{3,20}{4,20}", diff.Key, " :", diff.Value[0], diff.Value[1], diff.Value[2]);
+                    }
+                }
+            }
+            catch (IOException)
+            {
+                //TODO show messagebox
+                throw new Exception("chyba nacitani");
+            }
+
+
+
+
+        }
         static void saveVector(double[,] aproxiamation, string name)
         {
+            // Thread.CurrentThread.NumberFormat.NumberDecimalSeparator = ".";
+            Thread.CurrentThread.CurrentCulture = CultureInfo.CreateSpecificCulture("en-GB");
             char[] DELIMITERS = { ' ', '\t' };
             const string VERTEX = "v";
             const string FACE = "f";
@@ -24,6 +109,7 @@ namespace pokus
 
                 StreamReader faceReader = new StreamReader(Path.Combine(@"C:\Users\Káťa\Desktop\Diplomka\mesh\meshes", "0", "remesh.obj"));
                 StreamWriter faceWriter = new StreamWriter(Path.Combine(@"C:\Users\Káťa\Desktop\Diplomka\mesh\meshes", "0", name));
+
 
                 int i = 0;
                 String line;
@@ -61,62 +147,78 @@ namespace pokus
                 throw new Exception("chyba nacitani ci ukladani");
             }
         }
-        static void saveApproximation(string directoryPath)
+        static void savePCAVectors(double[,] matrix, string fileName)
         {
-            char[] DELIMITERS = { ' ', '\t' };
-            const string VERTEX = "v";
-            const string FACE = "f";
-
-            var faceDictionarities = new DirectoryInfo(directoryPath).GetDirectories();
-
-
-            //saves new approximat face
-            //TODO vsechnz<<<::/..,,
-            Parallel.For(0, 2, faceIndex =>
+            Thread.CurrentThread.CurrentCulture = CultureInfo.CreateSpecificCulture("en-GB");
+            try
             {
+                StreamWriter writer = new StreamWriter(Path.Combine(@"C:\Users\Káťa\Desktop\Diplomka", fileName));
+                for (int i = 0; i < matrix.GetLength(0); i++)
 
                 {
-                    try
+                    for (int j = 0; j < matrix.GetLength(1); j++)
                     {
-                        var faceDictionary = faceDictionarities.ElementAt(faceIndex);
-                        StreamReader faceReader = new StreamReader(Path.Combine(directoryPath, faceDictionary.ToString(), "remesh.obj"));
-                        StreamWriter faceWriter = new StreamWriter(Path.Combine(directoryPath, faceDictionary.ToString(), "newRemesh.obj"));
-
-
-                        String line;
-                        //gets only vertex data from the face file
-                        while ((line = faceReader.ReadLine()) != null)
+                        if (j == 0)
                         {
+                            writer.Write(matrix[i, j]);
+                        }
+                        else
+                        {
+                            writer.Write("," + matrix[i, j]);
 
-                            string[] tokens = line.Split(DELIMITERS, StringSplitOptions.RemoveEmptyEntries);
-                            if (tokens.Length == 0)
-                                continue;
-                            if (tokens[0] == VERTEX)
-                            {
-                                //TODO aktualni data
-                                faceWriter.WriteLine(VERTEX + "\t" + string.Join("\t", new float[] { 1.5f, 2, 2 }));
-
-
-                            }
-
-                            ///TODO muze byt jine poradi????, takhle je to rychlejsi o 2 sekundy
-                            if (tokens[0] == FACE)
-                                faceWriter.WriteLine(line);
 
                         }
+                    }
+                    writer.WriteLine();
 
-                        faceReader.Close();
-                        faceWriter.Close();
-                    }
-                    catch (IOException)
-                    {
-                        //TODO show messagebox
-                        throw new Exception("chyba nacitani ci ukladani");
-                    }
                 }
+            }
+            catch (IOException)
+            {
+                //TODO show messagebox
+                throw new Exception("chyba nacitani ci ukladani");
+            }
 
+        }
+        static double[,] loadPCAVectors(string fileName)
+        {
+            Thread.CurrentThread.CurrentCulture = CultureInfo.CreateSpecificCulture("en-GB");
+            List<List<double>> data = new List<List<double>>();
+            try
+            {
+                StreamReader reader = new StreamReader(Path.Combine(@"C:\Users\Káťa\Desktop\Diplomka", fileName));
+                string line;
+               
+                int indexLine = 0;
+                while ((line = reader.ReadLine())!=null)
+                {
+                    string[] tokens = line.Split(',');
+                    List<double> vector = new List<double>();
+                    foreach (var token in tokens)
+                    {
+                       vector.Add( double.Parse(token));
+                    }
+                    data.Add(vector);
 
-            });
+                }
+                
+            }
+            catch (IOException)
+            {
+                //TODO show messagebox
+                throw new Exception("chyba nacitani ci ukladani");
+            }
+            ////////////////////todo udelat kontrolu
+            double[,] loadVector = new double[data.Count, data[0].Count];
+            for (int i = 0; i < data.Count; i++)
+            {
+                for (int j = 0; j < data[0].Count; j++)
+                {
+                    loadVector[i, j] = data[i][j];
+                }
+            }
+            return loadVector;
+
         }
         static List<float>[] loadFaces(string directoryPath)
         {
@@ -131,8 +233,8 @@ namespace pokus
 
             //loads all face in face directory, 
             Parallel.For(0, faceDictionarities.Length, faceIndex =>
+            //for (int faceIndex = 0; faceIndex < faceDictionarities.Length; faceIndex++)
             {
-
                 {
                     try
                     {
@@ -321,23 +423,25 @@ namespace pokus
         /// </summary>
         /// <param name="faceMatrix">Matrix with face data</param>
         /// <returns>Retuns arry with the sum of columns</returns>
-        static float[] getColumnSums(List<float>[] faceMatrix)
+        static double[] getColumnSums(List<float>[] faceMatrix)
         {
 
 
             int numberOfVertexies = faceMatrix[0].Count;
-            float[] columnMeans = new float[numberOfVertexies];
+            double[] columnMeans = new double[numberOfVertexies];
 
             //gets sum of in each face
-            Parallel.For(0, faceMatrix.Length, faceIndex =>
+            // Parallel.For(0, faceMatrix.Length, faceIndex =>
+
+            //for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
+            Parallel.For(0, columnMeans.Length, vertexIndex =>
             {
-                List<float> face = faceMatrix[faceIndex];
 
-
-                for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
+                for (int faceIndex = 0; faceIndex < faceMatrix.Length; faceIndex++)
                 {
-                    columnMeans[vertexIndex] += face[vertexIndex];
+                    columnMeans[vertexIndex] += (double)faceMatrix[faceIndex][vertexIndex];
                 }
+                columnMeans[vertexIndex] /= faceMatrix.Length;
             });
             return columnMeans;
         }
@@ -346,16 +450,17 @@ namespace pokus
         /// </summary>
         /// <param name="faceMatrix">Matrix with face data</param>
         /// <param name="columnMeans">Array of column means</param>
-        static void means0(List<float>[] faceMatrix, float[] columnMeans)
+        static void means0(List<float>[] faceMatrix, double[] columnMeans)
         {
 
             Parallel.For(0, faceMatrix.Length, faceIndex =>
+            //for (int faceIndex = 0; faceIndex < faceMatrix.Length; faceIndex++)
             {
                 List<float> face = faceMatrix[faceIndex];
 
                 for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
                 {
-                    face[vertexIndex] -= columnMeans[vertexIndex] / faceMatrix.Length;
+                    face[vertexIndex] -= (float) columnMeans[vertexIndex];
                 }
             });
 
@@ -372,6 +477,7 @@ namespace pokus
             // for (int rowIndex = 0; rowIndex < matrixSize; rowIndex++)
 
             Parallel.For(0, matrixSize, rowIndex =>
+            //for (int rowIndex = 0; rowIndex < matrixSize; rowIndex++)
             {
                 List<float> face = faceMatrix[rowIndex];
 
@@ -403,7 +509,7 @@ namespace pokus
             writeAndResetStopwatch(stopwatch, "load");
 
 
-            float[] columnSums = getColumnSums(faceMatrix);
+           double[] columnSums = getColumnSums(faceMatrix);
             writeAndResetStopwatch(stopwatch, "sum");
 
             means0(faceMatrix, columnSums);
@@ -445,13 +551,15 @@ namespace pokus
 
             //int matrixSize = faceMatrix[0].Count;
             //double[,] XtimesX = new double[matrixSize, matrixSize];
-            //Parallel.For(0, matrixSize, rowIndex =>
+            //// Parallel.For(0, matrixSize, rowIndex =>
+            //for (int rowIndex = 0; rowIndex < matrixSize; rowIndex++)
             //{
+
             //    //List<float> face = faceMatrix[rowIndex];
 
             //    //Parallel.For(0, matrixSize, colomnIndex =>
             //    for (int colomnIndex = 0; colomnIndex < matrixSize; colomnIndex++)
-            //    {
+            //    { 
             //        for (int k = 0; k < faceMatrix.Length; k++)
             //        {
 
@@ -459,8 +567,8 @@ namespace pokus
             //        }
             //    }
 
-            //});
-
+            //}//);
+            //square = XtimesX;
             NumericMatrix group1 = engine.CreateNumericMatrix(square);
 
 
@@ -558,8 +666,8 @@ namespace pokus
             double[,] pcaVectors = new double[vectorOfVectors.GetLength(0), vertexNumber];
             Parallel.For(0, vectorOfVectors.GetLength(1), columnIndex =>
             //for (int columnIndex = 0; columnIndex < faceNumber; columnIndex++)
-            
-           {
+
+            {
                 for (int k = 0; k < vertexNumber; k++)
 
                 {
@@ -569,7 +677,7 @@ namespace pokus
                         //Vector in row +=vector in column * vector in row
                         pcaVectors[columnIndex, k] += vectorOfVectors[rowIndex, columnIndex] * faceMatrix[rowIndex][k];
                     }
-                    sum[columnIndex] += pcaVectors[columnIndex, k]* pcaVectors[columnIndex, k];
+                    sum[columnIndex] += pcaVectors[columnIndex, k] * pcaVectors[columnIndex, k];
                     //if (k == 0)
                     //{
                     //    min[columnIndex] = pcaVectors[columnIndex, k];
@@ -586,91 +694,143 @@ namespace pokus
                 sum[columnIndex] = Math.Sqrt(sum[columnIndex]);
             });
 
-          
+
 
             Parallel.For(0, vectorOfVectors.GetLength(1), columnIndex =>
+            //for (int columnIndex = 0; columnIndex < vectorOfVectors.GetLength(1); columnIndex++)
+            {
+                double interval = max[columnIndex] - min[columnIndex];
+
+                for (int k = 0; k < vertexNumber; k++)
                 {
-                    double interval = max[columnIndex] - min[columnIndex];
 
-                    for (int k = 0; k < vertexNumber; k++)
-                    {
+                    //if (interval == 0)
+                    //{
+                    //    // pcaVectors[columnIndex, k] = (pcaVectors[columnIndex, k] - min[columnIndex]);
+                    //}
+                    //else
+                    //{
+                    //    pcaVectors[columnIndex, k] = pcaVectors[columnIndex, k] - min[columnIndex]) ;
+                    //}
 
-                        //if (interval == 0)
-                        //{
-                        //    // pcaVectors[columnIndex, k] = (pcaVectors[columnIndex, k] - min[columnIndex]);
-                        //}
-                        //else
-                        //{
-                        //    pcaVectors[columnIndex, k] = pcaVectors[columnIndex, k] - min[columnIndex]) ;
-                        //}
-
-                      pcaVectors[columnIndex, k] = pcaVectors[columnIndex, k] /sum[columnIndex];
-                    }
-                });
+                    pcaVectors[columnIndex, k] = pcaVectors[columnIndex, k] / sum[columnIndex];
+                }
+            });
 
             double[,] values = new double[faceNumber, faceNumber];
 
             //X*pcaVectors
             Parallel.For(0, faceNumber, i =>
-                        {
-                            for (int j = 0; j < faceNumber; j++)
-                            {
-                                for (int k = 0; k < vertexNumber; k++)
-                                {
-                                    values[i, j] += faceMatrix[i][k] * pcaVectors[j, k];
-                                }
-                            }
+            //for (int i = 0; i < faceNumber; i++)
+            {
+                for (int j = 0; j < faceNumber; j++)
+                {
+                    for (int k = 0; k < vertexNumber; k++)
+                    {
+                        values[i, j] += faceMatrix[i][k] * pcaVectors[j, k];
+                    }
+                }
 
-                        });
-
-            double[,] aproxiamation = new double[vectorOfVectors.GetLength(0), vertexNumber];
-            Parallel.For(0, faceNumber, i =>
-                        {
-                            for (int j = 0; j < vertexNumber; j++)
-                            {
-                                for (int k = 0; k < 10; k++)
-                                {
-                                    aproxiamation[i, j] += values[i, k] * pcaVectors[k, j];
-                                }
-                            }
-
-                        });
+            });
 
             int numberOfVertexies = origin[0].Count;
-            float[] columnMeans = new float[numberOfVertexies];
-
+            double[,] columnMeans = new double[numberOfVertexies,1];
             //gets sum of in each face
-            Parallel.For(0, origin.Length, faceIndex =>
-                        {
-                            List<float> face = origin[faceIndex];
-
-
-                            for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
-                            {
-                                columnMeans[vertexIndex] += face[vertexIndex];
-                            }
-                        });
-            
-
-
-            Parallel.For(0, faceNumber, faceIndex =>
+            //Parallel.For(0, faceNumber, faceIndex =>
+            //for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
+            Parallel.For(0, columnMeans.Length, vertexIndex =>
             {
-                for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
+
+                for (int faceIndex = 0; faceIndex < faceNumber; faceIndex++)
                 {
-                    aproxiamation[faceIndex, vertexIndex] += columnMeans[vertexIndex] / faceNumber;
+                    columnMeans[vertexIndex,0] += origin[faceIndex][vertexIndex];
                 }
+                columnMeans[vertexIndex,0] /= faceNumber;
+            });
+
+
+
+
+            Loading l = new Loading();
+            var X = l.age;
+            int n = X.Count;
+            double[,] AB = new double[faceNumber,2];
+            for (int score = 0; score < faceNumber; score++)
+            {
+
+
+                double sumX = X.Sum();
+                List<double> Y = new List<double>();
+                for (int i = 0; i < faceNumber; i++)
+                {
+                    Y.Add(values[i, score]);
+                }
+
+                double sumY = Y.Sum();
+                //double b1 = vybranaRadaHodnoty.Select((y, t) => (t + 1) * y).Sum() - (double)(n + 1) / 2 * vybranaRadaHodnoty.Sum();
+                //b1 /= (double)n * (n * n - 1) / 12.0;
+                //double b0 = (double)vybranaRadaHodnoty.Sum() / n - (double)(n + 1) / 2 * b1;
+                double sumXY = X.Select((x, index) => x * Y[index]).Sum();
+                double sumXX = X.Select(x => x * x).Sum();
+
+                double dive = (double)(n * sumXX - sumX * sumX); 
+                double a = (n * sumXY - sumX * sumY) / (double)dive;
+                double b = (sumXX * sumY - sumX * sumXY) / (double)dive;
+                AB[score, 0] = a;
+                AB[score, 1] = b;
+                
+            }
+
+            double age = 100;
+            //for (int score = 0; score < faceNumber; score++)
+            {
+                for (int i = 0; i < faceNumber; i++)
+                {
+                    values[0,i] = AB[i, 0] *age + AB[i, 1];
+                }
+            }
+
+                //savePCAVectors(pcaVectors, "loadings.txt");
+                //savePCAVectors(values, "scores.txt");
+
+                //savePCAVectors(columnMeans, "means.txt");
+
+
+
+                double[,] aproxiamation = new double[vectorOfVectors.GetLength(0), vertexNumber];
+            int treshold = 100;
+            Parallel.For(0, faceNumber, i =>
+            //for (int i = 0; i < faceNumber; i++)
+            {
+                for (int j = 0; j < vertexNumber; j++)
+                {
+                    for (int k = 0; k < treshold /*faceNumber*/; k++)
+                    {
+                        aproxiamation[i, j] += values[i, k] * pcaVectors[k, j];
+                    }
+                }
+
             });
 
             Parallel.For(0, faceNumber, faceIndex =>
+            //for (int faceIndex = 0; faceIndex < faceNumber; faceIndex++)
             {
-              
-
                 for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
                 {
-                    aproxiamation[faceIndex, vertexIndex] = (float)aproxiamation[faceIndex, vertexIndex];
+                    aproxiamation[faceIndex, vertexIndex] += columnMeans[vertexIndex,0];
                 }
             });
-            saveVector(aproxiamation, "new10.obj");
+
+            // Parallel.For(0, faceNumber, faceIndex =>
+            //for (int faceIndex = 0; faceIndex < faceNumber; faceIndex++)
+            //{
+            //    for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
+            //    {
+            //        aproxiamation[faceIndex, vertexIndex] = (float)aproxiamation[faceIndex, vertexIndex];
+            //    }
+            //}//);
+            saveVector(aproxiamation, "newParallel"+ treshold+"age"+age+".obj");
+            engine.Dispose();
             // return eigenValues;
         }
 
@@ -681,18 +841,31 @@ namespace pokus
         {
             const string directoryPath = @"C:\Users\Káťa\Desktop\Diplomka\mesh\meshes";
             Stopwatch stopwatch = Stopwatch.StartNew();
-            //var matrix = loadFacesR(directoryPath);
+            var matrix = loadFacesR(directoryPath);
+
+
+            //var matrix = new double[,]  { { 1, 2, 9,5 },
+            //  { 3,1,5,6},
+            //{ 8,5,5,3},
+            // };
+
+
             writeAndResetStopwatch(stopwatch, "load");
+
+
+            int numberOfVertexies = matrix.GetLength(1);
+            double[] columnMeans = new double[numberOfVertexies];
+
+
+            int faceNumber = matrix.GetLength(0);
+            int vertexNumber = matrix.GetLength(1);
+
 
 
             REngine.SetEnvironmentVariables();
             REngine engine = REngine.GetInstance();
             // engine.Evaluate("options(max.print = 1)");
 
-            var matrix = new double[,]  { { 1, 2, 9,5 },
-              { 3,1,5,6},
-      
-             };
 
             NumericMatrix group1 = engine.CreateNumericMatrix(matrix);
             writeAndResetStopwatch(stopwatch, "save data");
@@ -713,8 +886,8 @@ namespace pokus
 
             //writeAndResetStopwatch(stopwatch, "all PCA");
 
-            engine.Evaluate("options(max.print=10000)");
-             //engine.Evaluate("sink('C:/Users/Káťa/Documents/pcaVectors.txt')");
+            engine.Evaluate("options(max.print=1000)");
+            //engine.Evaluate("sink('C:/Users/Káťa/Documents/pcaVectors.txt')");
             var test = engine.Evaluate("pr.out=prcomp(group1,center=TRUE,scale=FALSE)").AsList();
             //engine.Evaluate("sink('C:/Users/Káťa/Documents/pcaVectors.txt')");
             //engine.Evaluate("sink('C:/Users/Káťa/Documents/pcaValues.txt')");
@@ -737,7 +910,7 @@ namespace pokus
             {
                 Console.Write(list[i] + ", ");
             }
-
+            Console.WriteLine();
 
             // writeAndResetStopwatch(stopwatch, "oddelovatc");
 
@@ -757,21 +930,19 @@ namespace pokus
             var scoreVectors = test["x"].AsNumericMatrix();
             var loadingVectors = test["rotation"].AsNumericMatrix();
 
-            Console.WriteLine("vlastni cisla asi :");
-     
+            Console.WriteLine("score :");
+
             for (int i = 0; i < scoreVectors.RowCount; i++)
 
             {
                 for (int j = 0; j < scoreVectors.ColumnCount; j++)
                 {
-                    Console.Write(scoreVectors[i,j] + ", ");
+                    Console.Write(scoreVectors[i, j] + ", ");
                 }
                 Console.WriteLine();
             }
+            Console.WriteLine();
 
-
-            int faceNumber = matrix.GetLength(0);
-            int vertexNumber = matrix.GetLength(1);
 
 
 
@@ -780,14 +951,14 @@ namespace pokus
             //each face
             //Parallel.For(0, 1/*faceNumber*/, i =>
 
-            for (int i = 0; i < faceNumber ; i++)
+            for (int i = 0; i < 1 /* faceNumber */; i++)
 
             {
-        //eache vertex of face
-        for (int j = 0; j < vertexNumber; j++)
+                //eache vertex of face
+                for (int j = 0; j < vertexNumber; j++)
                 {
-            //linear combination with score and load vectors
-            for (int k = 0; k < loadingVectors.ColumnCount; k++)
+                    //linear combination with score and load vectors
+                    for (int k = 0; k < loadingVectors.ColumnCount; k++)
                     {
                         double a = loadingVectors[j, k];
                         double b = scoreVectors[i, k];
@@ -799,26 +970,36 @@ namespace pokus
             }//);
 
 
-            int numberOfVertexies = vertexNumber;
-            double[] columnMeans = new double[numberOfVertexies];
+            //int numberOfVertexies = vertexNumber;
+            //double[] columnMeans = new double[numberOfVertexies];
+
+            ////gets sum of in each face
+            //Parallel.For(0, faceNumber, faceIndex =>
+            //{
+
+            //    for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
+            //    {
+            //        columnMeans[vertexIndex] += matrix[faceIndex, vertexIndex];
+            //    }
+            //});
 
             //gets sum of in each face
-            Parallel.For(0, faceNumber, faceIndex =>
+            //Parallel.For(0, faceNumber, faceIndex =>
+            //for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
+            Parallel.For(0, columnMeans.Length, vertexIndex =>
             {
 
-
-
-                for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
+                for (int faceIndex = 0; faceIndex < faceNumber; faceIndex++)
                 {
                     columnMeans[vertexIndex] += matrix[faceIndex, vertexIndex];
                 }
             });
 
             Parallel.For(0, faceNumber, faceIndex =>
-            {
-        // List<float> face = faceMatrix[faceIndex];
+            //for (int faceIndex = 0; faceIndex < faceNumber; faceIndex++)
+            {    // List<float> face = faceMatrix[faceIndex];
 
-           for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
+                for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
                 {
                     aproxiamation[faceIndex, vertexIndex] += columnMeans[vertexIndex] / faceNumber;
                 }
@@ -835,7 +1016,7 @@ namespace pokus
             //    }
             //});
 
-            saveVector(aproxiamation, "new289.obj");
+            saveVector(aproxiamation, "Rnew297.obj");
             engine.Dispose();
 
 
@@ -858,7 +1039,7 @@ namespace pokus
             List<float>[] copy = new List<float>[dataMatrix.Length];
             for (int i = 0; i < dataMatrix.Length; i++)
             {
-                copy[i] = new List<float>();        
+                copy[i] = new List<float>();
                 for (int j = 0; j < dataMatrix[0].Count; j++)
                 {
                     copy[i].Add(dataMatrix[i][j]);
@@ -868,9 +1049,9 @@ namespace pokus
             if (dataMatrix == null)
             { return; }
 
-           
 
-           
+
+
 
             var columnSum = getColumnSums(dataMatrix);
             writeAndResetStopwatch(stopwatch, "sum");
@@ -881,7 +1062,7 @@ namespace pokus
             var multiplySmallMatrix = smallSquereMatrix(dataMatrix);
             writeAndResetStopwatch(stopwatch, "multiply");
 
-            runR(multiplySmallMatrix, dataMatrix,copy);
+            runR(multiplySmallMatrix, dataMatrix, copy);
             writeAndResetStopwatch(stopwatch, "eigen...");
 
 
@@ -890,9 +1071,51 @@ namespace pokus
 
         static void Main(string[] args)
         {
-           //runR(null);
-           // PCAR();
+            //Loading l = new Loading();
+
+            //runR(null);
+            //PCAR();
             PCA();
+            //var loadings = loadPCAVectors("loadings.txt");
+            //var scores = loadPCAVectors("scores.txt");
+            //var means = loadPCAVectors("means.txt");
+
+
+            //int faceNumber = loadings.GetLength(0);
+            //int vertexNumber = loadings.GetLength(1);
+            // double[,] aproxiamation = new double[faceNumber, vertexNumber];
+            //Parallel.For(0, faceNumber, i =>
+            ////for (int i = 0; i < faceNumber; i++)
+            //{
+            //    for (int j = 0; j < vertexNumber; j++)
+            //    {
+            //        for (int k = 0; k < faceNumber; k++)
+            //        {
+            //            aproxiamation[i, j] += scores[i, k] * loadings[k, j];
+            //        }
+            //    }
+
+            //});
+
+            //Parallel.For(0, faceNumber, faceIndex =>
+            ////for (int faceIndex = 0; faceIndex < faceNumber; faceIndex++)
+            //{
+            //    for (int vertexIndex = 0; vertexIndex < means.Length; vertexIndex++)
+            //    {
+            //        aproxiamation[faceIndex, vertexIndex] += means[vertexIndex, 0];
+            //    }
+            //});
+
+            //// Parallel.For(0, faceNumber, faceIndex =>
+            ////for (int faceIndex = 0; faceIndex < faceNumber; faceIndex++)
+            ////{
+            ////    for (int vertexIndex = 0; vertexIndex < columnMeans.Length; vertexIndex++)
+            ////    {
+            ////        aproxiamation[faceIndex, vertexIndex] = (float)aproxiamation[faceIndex, vertexIndex];
+            ////    }
+            ////}//);
+            //saveVector(aproxiamation, "hokusPokus.obj");
+            differences(@"C:\Users\Káťa\Desktop\Diplomka\mesh\meshes", "0", "remesh.obj", "newParallel100age100.obj");
 
 
             // Console.ReadLine();
